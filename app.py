@@ -5,7 +5,9 @@ from PIL import Image
 import numpy as np
 
 st.title("CT Kidney Disease Classifier")
-st.write("CT scan image upload karo, model bata dega disease ka type")
+st.write("Upload a CT scan image and the model will classify the disease type.")
+
+st.warning("⚠️ **Note:** This model is trained exclusively on CT Kidney scan images (categories: Cyst, Normal, Stone, Tumor). Uploading any other type of image (e.g. a regular photo, X-ray, or scan of a different organ) will produce unreliable or incorrect results.")
 
 @st.cache_resource
 def load_my_model():
@@ -16,7 +18,7 @@ model = load_my_model()
 
 class_names = ["Cyst", "Normal", "Stone", "Tumor"]
 
-uploaded_file = st.file_uploader("CT scan image upload karo", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload a CT scan image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
@@ -32,4 +34,9 @@ if uploaded_file is not None:
     confidence = np.max(prediction) * 100
     predicted_class = class_names[predicted_class_idx]
 
-    st.success(f"Prediction: **{predicted_class}** (Confidence: {confidence:.2f}%)")
+    if confidence < 60:
+        st.error(f"❓ Low confidence result ({confidence:.2f}%). This image may not be a valid CT kidney scan, or the scan quality is unclear. Please try uploading a clearer CT scan image.")
+    else:
+        st.success(f"Prediction: **{predicted_class}** (Confidence: {confidence:.2f}%)")
+
+    st.caption("Disclaimer: This tool is intended for educational and demonstration purposes only and does not constitute medical advice or diagnosis. Please consult a qualified healthcare professional for any medical concerns.")
