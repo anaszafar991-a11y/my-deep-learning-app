@@ -22,7 +22,7 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded CT Scan", width=300)
 
-    img_resized = image.resize((224, 224))
+    img_resized = image.resize((128, 128))
     img_array = np.array(img_resized)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = img_array / 255.0
