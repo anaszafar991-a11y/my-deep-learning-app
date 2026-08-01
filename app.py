@@ -3,56 +3,85 @@ from huggingface_hub import hf_hub_download
 from tensorflow.keras.models import load_model
 from PIL import Image
 import numpy as np
+from datetime import datetime
 
 st.set_page_config(
     page_title="CT Kidney Disease Classifier",
     page_icon="🩺",
-    layout="centered"
+    layout="wide"
 )
 
 st.markdown("""
     <style>
     .main-title {
-        font-size: 40px;
-        font-weight: 700;
-        color: #1E3A5F;
+        font-size: 38px;
+        font-weight: 800;
+        color: #0B3D5C;
         margin-bottom: 0px;
     }
     .subtitle {
         font-size: 16px;
-        color: #555555;
-        margin-bottom: 25px;
+        color: #5A6B7B;
+        margin-bottom: 20px;
     }
     .result-box {
-        padding: 20px;
-        border-radius: 10px;
-        background-color: #f0f7f4;
-        border: 1px solid #c8e6d8;
+        padding: 22px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #E8F5F0 0%, #DCEEF5 100%);
+        border: 1px solid #B8DCE8;
         text-align: center;
     }
     .explanation-box {
         padding: 18px;
         border-radius: 10px;
-        background-color: #f9f9f9;
-        border: 1px solid #e0e0e0;
+        background-color: #F7F9FA;
+        border-left: 4px solid #0B7285;
         margin-top: 15px;
+    }
+    .history-card {
+        padding: 10px 14px;
+        border-radius: 8px;
+        background-color: #F7F9FA;
+        border: 1px solid #E0E4E8;
+        margin-bottom: 8px;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #0B3D5C;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #FFFFFF !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# ---------------- SIDEBAR ----------------
+with st.sidebar:
+    st.markdown("## 🩺 CT Kidney AI")
+    st.markdown("---")
+    st.markdown("### About")
+    st.write(
+        "This tool uses a deep learning model to classify CT kidney scan "
+        "images into four categories: Cyst, Normal, Stone, and Tumor."
+    )
+    st.markdown("### Model Info")
+    st.write("**Type:** CNN (Deep Learning)")
+    st.write("**Input:** CT Kidney Scan (grayscale)")
+    st.write("**Classes:** Cyst, Normal, Stone, Tumor")
+    st.markdown("---")
+    st.markdown("### ⚠️ Important")
+    st.write(
+        "This is a prototype AI tool for screening assistance only. "
+        "It has not undergone formal clinical validation. All results "
+        "must be reviewed by a qualified radiologist or physician."
+    )
+    st.markdown("---")
+    if st.button("🗑️ Clear History"):
+        st.session_state.history = []
+        st.rerun()
+
+# ---------------- HEADER ----------------
 st.markdown('<p class="main-title">🩺 CT Kidney Disease Classifier</p>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">AI-assisted classification for CT kidney scan images</p>', unsafe_allow_html=True)
-
-with st.expander("ℹ️ About this tool", expanded=False):
-    st.write("""
-    This tool uses a deep learning model trained to classify CT kidney scan images 
-    into four categories: **Cyst, Normal, Stone, and Tumor**.
-
-    **Important:** This is a prototype AI tool intended to assist screening, not to 
-    replace professional medical diagnosis. This model has not undergone formal 
-    clinical validation or regulatory approval. All results must be reviewed and 
-    confirmed by a qualified radiologist or physician.
-    """)
 
 class_info = {
     "Normal": {
@@ -74,7 +103,6 @@ class_info = {
 }
 
 def is_likely_ct_scan(image, color_threshold=15):
-    """CT scans are grayscale. Reject images with significant color content."""
     img_array = np.array(image.convert("RGB"))
     r = img_array[:, :, 0].astype(int)
     g = img_array[:, :, 1].astype(int)
@@ -92,6 +120,10 @@ with st.spinner("Loading model..."):
 
 class_names = ["Cyst", "Normal", "Stone", "Tumor"]
 
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+# ---------------- UPLOAD ----------------
 st.markdown("### 📤 Upload CT Scan")
 uploaded_file = st.file_uploader("Supported formats: JPG, JPEG, PNG", type=["jpg", "jpeg", "png"])
 
@@ -127,8 +159,8 @@ if uploaded_file is not None:
             else:
                 st.markdown(f"""
                     <div class="result-box">
-                        <h3 style="color:#1E3A5F; margin-bottom:5px;">{predicted_class}</h3>
-                        <p style="color:#555;">Confidence: <b>{confidence:.2f}%</b></p>
+                        <h3 style="color:#0B3D5C; margin-bottom:5px;">{predicted_class}</h3>
+                        <p style="color:#5A6B7B;">Confidence: <b>{confidence:.2f}%</b></p>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -144,6 +176,25 @@ if uploaded_file is not None:
                     <b>Details:</b> {info['detail']}
                 </div>
             """, unsafe_allow_html=True)
+
+            st.session_state.history.insert(0, {
+                "filename": uploaded_file.name,
+                "prediction": predicted_class,
+                "confidence": f"{confidence:.2f}%",
+                "time": datetime.now().strftime("%H:%M:%S")
+            })
+
+# ---------------- HISTORY ----------------
+if st.session_state.history:
+    st.markdown("---")
+    st.markdown("### 🕒 Scan History (this session)")
+    for item in st.session_state.history:
+        st.markdown(f"""
+            <div class="history-card">
+                <b>{item['filename']}</b> — {item['prediction']} ({item['confidence']}) 
+                <span style="color:#999; float:right;">{item['time']}</span>
+            </div>
+        """, unsafe_allow_html=True)
 
 st.markdown("---")
 st.caption("⚕️ Disclaimer: This tool is intended for educational and demonstration purposes only and does not constitute medical advice or diagnosis. All findings must be verified by a qualified healthcare professional.")
