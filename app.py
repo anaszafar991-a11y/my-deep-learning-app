@@ -4,9 +4,12 @@ from tensorflow.keras.models import load_model
 from PIL import Image
 import numpy as np
 from datetime import datetime
+from fpdf import FPDF
+import tempfile
+import os
 
 st.set_page_config(
-    page_title="CT Kidney Disease Classifier",
+    page_title="Kidney Disease Classifier",
     page_icon="🩺",
     layout="wide"
 )
@@ -56,16 +59,32 @@ st.markdown("""
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
-    st.markdown("## 🩺 CT Kidney AI")
+    st.markdown("## 🩺 Kidney AI")
+    st.markdown("---")
+
+    st.markdown("### 🔬 Scan Type")
+    scan_type = st.radio(
+        "Select the type of scan you are uploading:",
+        ["CT Scan", "MRI Scan"],
+        label_visibility="collapsed"
+    )
+
+    st.markdown("---")
+    st.markdown("### 🧾 Patient Information (optional)")
+    st.caption("Filled fields will appear on the downloadable PDF report.")
+    patient_name = st.text_input("Patient Name")
+    patient_age = st.text_input("Age")
+    patient_gender = st.selectbox("Gender", ["", "Male", "Female", "Other"])
+
     st.markdown("---")
     st.markdown("### About")
     st.write(
-        "This tool uses a deep learning model to classify CT kidney scan "
+        "This tool uses a deep learning model to classify CT/MRI kidney scan "
         "images into four categories: Cyst, Normal, Stone, and Tumor."
     )
     st.markdown("### Model Info")
     st.write("**Type:** CNN (Deep Learning)")
-    st.write("**Input:** CT Kidney Scan (grayscale)")
+    st.write(f"**Input:** {scan_type} (grayscale)")
     st.write("**Classes:** Cyst, Normal, Stone, Tumor")
     st.markdown("---")
     st.markdown("### ⚠️ Important")
@@ -80,8 +99,8 @@ with st.sidebar:
         st.rerun()
 
 # ---------------- HEADER ----------------
-st.markdown('<p class="main-title">🩺 CT Kidney Disease Classifier</p>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">AI-assisted classification for CT kidney scan images</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-title">🩺 Kidney Disease Classifier</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="subtitle">AI-assisted classification for {scan_type.lower()} kidney images</p>', unsafe_allow_html=True)
 
 class_info = {
     "Normal": {
@@ -102,13 +121,96 @@ class_info = {
     }
 }
 
-def is_likely_ct_scan(image, color_threshold=15):
+def is_likely_scan_image(image, color_threshold=15):
     img_array = np.array(image.convert("RGB"))
     r = img_array[:, :, 0].astype(int)
     g = img_array[:, :, 1].astype(int)
     b = img_array[:, :, 2].astype(int)
     color_diff = (np.abs(r - g) + np.abs(g - b) + np.abs(r - b)).mean()
     return color_diff < color_threshold
+
+
+def generate_pdf_report(scan_type, patient_name, patient_age, patient_gender,
+                         image, predicted_class, confidence, class_names,
+                         prediction, info):
+    pdf = FPDF()
+    pdf.add_page()
+
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(11, 61, 92)
+    pdf.cell(0, 12, f"{scan_type} Kidney Disease Report", ln=True, align="C")
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(90, 107, 123)
+    pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
+    pdf.ln(4)
+    pdf.set_draw_color(184, 220, 232)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(6)
+
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(11, 61, 92)
+    pdf.cell(0, 8, "Patient Information", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 7, f"Name: {patient_name or 'N/A'}", ln=True)
+    pdf.cell(0, 7, f"Age: {patient_age or 'N/A'}", ln=True)
+    pdf.cell(0, 7, f"Gender: {patient_gender or 'N/A'}", ln=True)
+    pdf.cell(0, 7, f"Scan Type: {scan_type}", ln=True)
+    pdf.ln(4)
+
+    img_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_img:
+            image.save(tmp_img.name)
+            img_path = tmp_img.name
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(11, 61, 92)
+        pdf.cell(0, 8, "Uploaded Scan", ln=True)
+        pdf.image(img_path, w=80)
+        pdf.ln(4)
+    finally:
+        if img_path and os.path.exists(img_path):
+            os.unlink(img_path)
+
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(11, 61, 92)
+    pdf.cell(0, 8, "AI Analysis Result", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 7, f"Prediction: {predicted_class}", ln=True)
+    pdf.cell(0, 7, f"Confidence: {confidence:.2f}%", ln=True)
+    pdf.ln(2)
+
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "Class Probabilities:", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    for i, cname in enumerate(class_names):
+        pdf.cell(0, 6, f"    {cname}: {prediction[0][i] * 100:.1f}%", ln=True)
+    pdf.ln(4)
+
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "Finding Summary:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, info["summary"])
+    pdf.ln(2)
+
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "Details:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, info["detail"])
+    pdf.ln(6)
+
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(150, 150, 150)
+    pdf.multi_cell(
+        0, 5,
+        "Disclaimer: This tool is intended for educational and demonstration "
+        "purposes only and does not constitute medical advice or diagnosis. "
+        "All findings must be verified by a qualified healthcare professional."
+    )
+
+    return bytes(pdf.output())
 
 @st.cache_resource
 def load_my_model():
@@ -124,7 +226,7 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 # ---------------- UPLOAD ----------------
-st.markdown("### 📤 Upload CT Scan")
+st.markdown(f"### 📤 Upload {scan_type}")
 uploaded_file = st.file_uploader("Supported formats: JPG, JPEG, PNG", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
@@ -133,12 +235,12 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
 
     with col1:
-        st.image(image, caption="Uploaded CT Scan", use_container_width=True)
+        st.image(image, caption=f"Uploaded {scan_type}", use_container_width=True)
 
-    if not is_likely_ct_scan(image):
+    if not is_likely_scan_image(image):
         with col2:
             st.markdown("### 🔍 Result")
-            st.error("🚫 **This does not appear to be a CT kidney scan.**\n\nThe uploaded image does not match the visual characteristics of a CT scan (CT scans are grayscale). Please upload a valid CT kidney scan image.")
+            st.error(f"🚫 **This does not appear to be a valid {scan_type.lower()}.**\n\nThe uploaded image does not match the visual characteristics of a {scan_type.lower()} (these scans are typically grayscale). Please upload a valid {scan_type.lower()} image.")
     else:
         img_resized = image.resize((128, 128))
         img_array = np.array(img_resized)
@@ -155,7 +257,7 @@ if uploaded_file is not None:
         with col2:
             st.markdown("### 🔍 Result")
             if confidence < 60:
-                st.error(f"**Low Confidence:** {confidence:.2f}%\n\nThis image may not be a valid CT kidney scan, or the scan quality is unclear.")
+                st.error(f"**Low Confidence:** {confidence:.2f}%\n\nThis image may not be a valid {scan_type.lower()}, or the scan quality is unclear.")
             else:
                 st.markdown(f"""
                     <div class="result-box">
@@ -183,6 +285,28 @@ if uploaded_file is not None:
                 "confidence": f"{confidence:.2f}%",
                 "time": datetime.now().strftime("%H:%M:%S")
             })
+
+            # ---------------- PDF REPORT ----------------
+            pdf_bytes = generate_pdf_report(
+                scan_type=scan_type,
+                patient_name=patient_name,
+                patient_age=patient_age,
+                patient_gender=patient_gender,
+                image=image,
+                predicted_class=predicted_class,
+                confidence=confidence,
+                class_names=class_names,
+                prediction=prediction,
+                info=info
+            )
+
+            report_filename = f"{scan_type.replace(' ', '_')}_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=pdf_bytes,
+                file_name=report_filename,
+                mime="application/pdf"
+            )
 
 # ---------------- HISTORY ----------------
 if st.session_state.history:
