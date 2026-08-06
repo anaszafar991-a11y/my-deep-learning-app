@@ -50,9 +50,50 @@ st.markdown("""
     }
     section[data-testid="stSidebar"] {
         background-color: #0B3D5C;
+        padding-top: 4px;
     }
-    section[data-testid="stSidebar"] * {
+    /* Labels, headings, captions -> white text on dark sidebar */
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] h4,
+    section[data-testid="stSidebar"] span:not([data-baseweb="select"] *),
+    section[data-testid="stSidebar"] .stMarkdown,
+    section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] .stRadio label p {
         color: #FFFFFF !important;
+    }
+    /* Actual input fields -> keep readable dark text on white background */
+    section[data-testid="stSidebar"] input,
+    section[data-testid="stSidebar"] textarea {
+        color: #0B3D5C !important;
+        background-color: #FFFFFF !important;
+        border-radius: 8px !important;
+        caret-color: #0B3D5C !important;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="base-input"] {
+        background-color: #FFFFFF !important;
+        border-radius: 8px !important;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+        background-color: #FFFFFF !important;
+        border-radius: 8px !important;
+        color: #0B3D5C !important;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="select"] * {
+        color: #0B3D5C !important;
+    }
+    /* Spacing between fields so the form doesn't feel cramped */
+    section[data-testid="stSidebar"] .stTextInput,
+    section[data-testid="stSidebar"] .stTextArea,
+    section[data-testid="stSidebar"] .stSelectbox {
+        margin-bottom: 12px;
+    }
+    section[data-testid="stSidebar"] input::placeholder,
+    section[data-testid="stSidebar"] textarea::placeholder {
+        color: #7A8B99 !important;
     }
     </style>
 """, unsafe_allow_html=True)
