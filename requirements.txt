@@ -3,3 +3,4 @@ huggingface_hub
 tensorflow-cpu
 numpy
 pillow
+fpdf2
